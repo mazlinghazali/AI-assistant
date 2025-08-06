@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ask Fire Protection Bylaws</title>
+  <style>
+    body { font-family: sans-serif; padding: 2em; background: #f9f9f9; }
+    #chat-box { width: 100%; padding: 1em; margin-bottom: 1em; }
+    #submit { padding: 0.5em 1em; }
+    #response { margin-top: 2em; background: #fff; padding: 1em; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Ask about Fire Protection Bylaws (Malaysia)</h2>
+  <textarea id="chat-box" rows="4" placeholder="Type your question here..."></textarea><br>
+  <button id="submit">Ask</button>
+  <div id="response"></div>
+
+  <script>
+    document.getElementById('submit').onclick = function () {
+      const question = document.getElementById('chat-box').value;
+      const responseBox = document.getElementById('response');
+      
+      // Simulate a fake response
+      responseBox.innerHTML = "<strong>Question:</strong> " + question + "<br><br>" +
+                              "<strong>Answer:</strong> According to UBBL 1984, the minimum fire escape width for public buildings is...";
+    }
+  </script>
+</body>
+</html>
