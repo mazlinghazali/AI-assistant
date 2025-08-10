@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Assistants API — Local Chat</title>
+  <style>
+    body { font-family: sans-serif; background: #f9f9f9; padding: 2em; }
+    .wrap { max-width: 700px; margin: auto; background: #fff; padding: 2em; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    input, textarea, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: 1px solid #ccc; }
+    button { background: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:hover { background: #45a049; }
+    .response { white-space: pre-wrap; background: #f4f4f4; padding: 1em; border-radius: 5px; margin-top: 1em; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Assistants API — Local Chat</h1>
+  <label>OpenAI API Key</label>
+  <input id="apiKey" type="password" placeholder="sk-..." />
+
+  <label>Assistant ID</label>
+  <input id="assistantId" type="text" placeholder="asst_..." />
+
+  <label>Your Message</label>
+  <textarea id="userInput" rows="3" placeholder="Type your question here..."></textarea>
+  <button id="sendBtn">Send</button>
+
+  <h2>Response</h2>
+  <div id="response" class="response"></div>
+</div>
+
+<script>
+document.getElementById('sendBtn').addEventListener('click', async () => {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const assistantId = document.getElementById('assistantId').value.trim();
+  const userMessage = document.getElementById('userInput').value.trim();
+  const responseDiv = document.getElementById('response');
+
+  if (!apiKey || !assistantId || !userMessage) {
+    alert("Please fill in API Key, Assistant ID, and your message.");
+    return;
+  }
+
+  responseDiv.textContent = "Thinking...";
+
+  try {
+    // 1. Create a thread
+    let threadRes = await fetch("https://api.openai.com/v1/threads", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({})
+    });
+    let threadData = await threadRes.json();
+    const threadId = threadData.id;
+
+    // 2. Add a user message to the thread
+    await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: userMessage
+      })
+    });
+
+    // 3. Run the assistant
+    let runRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify({
+        assistant_id: assistantId
+      })
+    });
+    let runData = await runRes.json();
+
+    // 4. Poll until complete
+    let runStatus = runData.status;
+    while (runStatus === "in_progress" || runStatus === "queued") {
+      await new Promise(r => setTimeout(r, 1000));
+      let statusRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runData.id}`, {
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "OpenAI-Beta": "assistants=v2"
+        }
+      });
+      let statusData = await statusRes.json();
+      runStatus = statusData.status;
+    }
+
+    // 5. Get messages
+    let msgRes = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "OpenAI-Beta": "assistants=v2"
+      }
+    });
+    let msgData = await msgRes.json();
+    let assistantReply = msgData.data.find(m => m.role === "assistant");
+
+    responseDiv.textContent = assistantReply?.content[0]?.text?.value || "No reply from assistant.";
+
+  } catch (err) {
+    console.error(err);
+    responseDiv.textContent = "Error: " + err.message;
+  }
+});
+</script>
+</body>
+</html>
